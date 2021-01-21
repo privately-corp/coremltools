@@ -6,6 +6,7 @@
 
 import os.path
 from ...models import MLModel
+import tensorflow as tf
 
 
 def convert(filename,
@@ -164,6 +165,9 @@ def convert(filename,
 
     elif isinstance(filename, list):
         filename = _graph_def_from_concrete_function(filename)
+    elif isinstance(filename, tf.keras.models.Model):
+        filename = _graph_def_from_saved_model_or_keras_model(filename)
+
     else:
         raise ValueError(invalid_filename_message)
 
@@ -201,11 +205,23 @@ def _graph_def_from_saved_model_or_keras_model(filename):
     :param filename: TensorFlow SavedModel directory or Keras HDF5 model (.h5) file.
     :return: TensorFlow GraphDef object.
     """
+    # def f1_macro(y_true, y_pred):
+    #   true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    #   possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
+    #   predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+    #   precision = true_positives / (predicted_positives + K.epsilon())
+    #   recall = true_positives / (possible_positives + K.epsilon())
+    #   return 2 * (precision*recall)/(precision+recall+K.epsilon())
+
     try:
         import tensorflow as tf
         from tensorflow.python.keras.saving import saving_utils as _saving_utils
         from tensorflow.python.framework import convert_to_constants as _convert_to_constants
-        model = tf.keras.models.load_model(filename)
+
+        if isinstance(filename, str):
+          model = tf.keras.models.load_model(filename)
+        else:
+          model = filename
         tf.keras.backend.set_learning_phase(False)
         func = _saving_utils.trace_model_call(model)
         concrete_func = func.get_concrete_function()
